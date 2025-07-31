@@ -184,6 +184,15 @@ let autoPlayCountdown = 10;
 let countdownInterval = null;
 
 window.addEventListener('load', () => {
+    // Check if we came from autoplay
+    const autoPlayParam = new URLSearchParams(window.location.search).get('autoplay');
+    const returnFromAutoPlay = sessionStorage.getItem('returnFromAutoPlay') === 'true';
+    
+    if (returnFromAutoPlay) {
+        sessionStorage.removeItem('returnFromAutoPlay');
+        console.log('Returned from autoplay, video should start automatically');
+    }
+    
     const autoPlayToggle = document.getElementById('autoPlayToggle');
     if (autoPlayToggle) {
         const savedPreference = localStorage.getItem('courseAutoPlay');
@@ -224,12 +233,18 @@ window.addEventListener('load', () => {
 });
 
 function initializePlayer() {
+    // Check if we came from auto-play
+    const autoPlayParam = new URLSearchParams(window.location.search).get('autoplay');
+    const shouldAutoPlay = autoPlayParam === 'true';
+    
     player = videojs('player', {
         techOrder: ['youtube'],
         sources: [{
             type: 'video/youtube',
             src: '{{ video.video_url }}'
         }],
+        autoplay: shouldAutoPlay,
+        muted: shouldAutoPlay, // Mute initially if autoplaying (browser requirement)
         youtube: {
             ytControls: 2,
             modestbranding: 1,
@@ -248,8 +263,26 @@ function initializePlayer() {
     });
 
     player.ready(() => {
-        console.log('Video.js player is ready');
+        console.log('Video.js player is ready, completed status:', isCompleted);
         document.getElementById('fallback-player').style.display = 'none';
+        
+        // Auto-start if coming from auto-play
+        const autoPlayParam = new URLSearchParams(window.location.search).get('autoplay');
+        if (autoPlayParam === 'true') {
+            console.log('Auto-playing video...');
+            // First try to play muted (most browsers require this)
+            player.muted(true);
+            player.play().then(() => {
+                // After successful autoplay, unmute if possible
+                setTimeout(() => {
+                    player.muted(false);
+                }, 1000);
+            }).catch(error => {
+                console.warn('Auto-play failed:', error);
+                // If autoplay fails, unmute and show play button
+                player.muted(false);
+            });
+        }
     });
 
     player.on('error', (e) => {
@@ -260,8 +293,12 @@ function initializePlayer() {
     player.on('play', () => {
         if (!hasStartedWatching) {
             hasStartedWatching = true;
-            showProgressTracking();
-            console.log('Started watching, showing progress tracking');
+            if (!isCompleted) {
+                showProgressTracking();
+                console.log('Started watching, showing progress tracking');
+            } else {
+                console.log('Video already completed, preparing for auto-next');
+            }
         }
         startProgressTracking();
     });
@@ -272,11 +309,15 @@ function initializePlayer() {
 
     player.on('ended', () => {
         stopProgressTracking();
-        console.log('Video ended');
+        console.log('Video ended, completed status:', isCompleted);
+        
         if (!isCompleted && !autoCompleted) {
             autoCompleted = true;
             console.log('Video ended, marking as complete...');
             markLectureComplete(lectureId, true);
+        } else if (isCompleted) {
+            // If video is already completed, show auto-next notification directly
+            showAutoCompleteNotification();
         }
     });
 }
@@ -339,16 +380,25 @@ function startProgressTracking() {
     }
 
     progressInterval = setInterval(() => {
-        if (player && player.getCurrentTime && player.getDuration) {
-            const currentTime = player.getCurrentTime();
-            const duration = player.getDuration();
+        if (player) {
+            const currentTime = player.currentTime();
+            const duration = player.duration();
+            
+            console.log('Current time:', currentTime, 'Duration:', duration); // Debug log
 
             if (duration > 0) {
                 const progressPercent = Math.round((currentTime / duration) * 100);
                 updateProgressDisplay(progressPercent);
+                videoDuration = duration; // Update video duration
 
-                const currentSegment = Math.floor((currentTime / videoDuration) * 100);
+                const currentSegment = Math.floor((currentTime / duration) * 100);
+                const prevSegment = Math.max(0, currentSegment - 1);
+                const nextSegment = Math.min(99, currentSegment + 1);
+                
+                // Add current and adjacent segments to account for seeking
                 watchedSegments.add(currentSegment);
+                watchedSegments.add(prevSegment);
+                watchedSegments.add(nextSegment);
 
                 const uniqueSegmentsWatched = watchedSegments.size;
 
@@ -356,7 +406,13 @@ function startProgressTracking() {
                     console.log(`Progress: ${progressPercent}%, Segments: ${uniqueSegmentsWatched}%, Time: ${Math.round(currentTime)}/${Math.round(duration)}s`);
                 }
 
-                if (uniqueSegmentsWatched >= 75 && !isCompleted && !autoCompleted) {
+                // Auto-complete if any completion criteria is met
+                if (!isCompleted && !autoCompleted && (
+                    uniqueSegmentsWatched >= 75 || 
+                    progressPercent >= 95 ||
+                    (duration - currentTime) <= 5
+                )) {
+                    console.log('Auto-completion criteria met, marking as complete...');
                     autoCompleted = true;
                     markLectureComplete(lectureId, true);
                 }
@@ -378,17 +434,40 @@ function stopProgressTracking() {
 }
 
 function updateProgressDisplay(percent) {
-    const uniqueSegments = watchedSegments.size;
-    const segmentText = uniqueSegments > 1 ? `${percent}% watched (${uniqueSegments}% coverage)` : `${percent}% watched`;
-    document.getElementById('progressText').textContent = segmentText;
-    const progressBar = document.querySelector('#watchProgressBar .progress-bar');
-    progressBar.style.width = `${percent}%`;
-    progressBar.setAttribute('aria-valuenow', percent);
+    try {
+        // Make sure percent is a valid number
+        percent = Math.max(0, Math.min(100, Math.round(percent)));
+        
+        // Update text display
+        const uniqueSegments = watchedSegments.size;
+        const segmentText = uniqueSegments > 1 ? 
+            `${percent}% watched (${uniqueSegments}% coverage)` : 
+            `${percent}% watched`;
+        
+        const progressText = document.getElementById('progressText');
+        if (progressText) {
+            progressText.textContent = segmentText;
+        }
+
+        // Update progress bar
+        const progressBar = document.querySelector('#watchProgressBar .progress-bar');
+        if (progressBar) {
+            progressBar.style.width = `${percent}%`;
+            progressBar.setAttribute('aria-valuenow', percent);
+        }
+        
+        console.log('Progress updated:', percent + '%'); // Debug log
+    } catch (error) {
+        console.error('Error updating progress display:', error);
+    }
 }
 
 function showAutoCompleteNotification() {
-    document.getElementById('watchProgress').style.display = 'none';
-    document.getElementById('watchProgressBar').style.display = 'none';
+    // Hide progress elements if they exist and are visible
+    const watchProgress = document.getElementById('watchProgress');
+    const watchProgressBar = document.getElementById('watchProgressBar');
+    if (watchProgress) watchProgress.style.display = 'none';
+    if (watchProgressBar) watchProgressBar.style.display = 'none';
 
     const autoPlayToggle = document.getElementById('autoPlayToggle');
     const autoPlayEnabled = autoPlayToggle ? autoPlayToggle.checked : false;
@@ -473,7 +552,15 @@ function playNextVideo() {
         clearInterval(countdownInterval);
     }
     if (nextLectureUrl) {
-        window.location.href = nextLectureUrl;
+        // Store the current scroll position in session storage
+        sessionStorage.setItem('returnFromAutoPlay', 'true');
+        
+        // Add autoplay parameter to URL
+        const separator = nextLectureUrl.includes('?') ? '&' : '?';
+        const autoplayUrl = nextLectureUrl + separator + 'autoplay=true';
+        
+        console.log('Navigating to next video with autoplay:', autoplayUrl);
+        window.location.href = autoplayUrl;
     }
 }
 
