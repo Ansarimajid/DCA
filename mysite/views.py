@@ -51,6 +51,8 @@ def lecture_detail(request, slug, lecture_slug):
         
         # Check if user has completed this lecture
         lecture_completed = False
+        next_lecture = None
+        
         if request.user.is_authenticated:
             student = StudentInfo.objects.filter(username=request.user).first()
             if student:
@@ -60,6 +62,17 @@ def lecture_detail(request, slug, lecture_slug):
                     defaults={'completed': False}
                 )
                 lecture_completed = lecture_progress.completed
+        
+        # Find next lecture in sequence
+        all_lectures = Lecture.objects.filter(course=course).order_by('id')
+        current_lecture_found = False
+        
+        for lec in all_lectures:
+            if current_lecture_found:
+                next_lecture = lec
+                break
+            if lec.id == video.id:
+                current_lecture_found = True
 
         context ={
             "course":course,
@@ -68,6 +81,7 @@ def lecture_detail(request, slug, lecture_slug):
             "video":video,
             "lecture_comment":Lecture_Comment,
             "lecture_completed": lecture_completed,
+            "next_lecture": next_lecture,
         }
         return render(request, 'course/lecture.html', context)
 

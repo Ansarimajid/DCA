@@ -33,8 +33,19 @@
                                 aria-labelledby="headingOne{{ section.id }}" data-parent="#accordionExample">
                                 <div class="card-body">{% for lecture in lecture %}{% if lecture.section == section %}
                                 {% if lecture.lecture_type == "NOT PREMIUM" %}
-                                    <li><a href="{{ lecture.lecture_slug }}">{{ lecture.title }}</a>
-                                    </li>{% else %}<li>{{ lecture.title }} <span class="badge badge-pill badge-secondary">PREMIUM VIDEO</span></li>
+                                    <li>
+                                        <a href="{{ lecture.lecture_slug }}" 
+                                           class="{% if lecture.id == video.id %}text-primary font-weight-bold{% endif %}">
+                                            {% if lecture.id == video.id %}
+                                                <i class="fas fa-play-circle"></i> {{ lecture.title }} <span class="badge badge-primary">Current</span>
+                                            {% elif next_lecture and lecture.id == next_lecture.id %}
+                                                <i class="fas fa-forward"></i> {{ lecture.title }} <span class="badge badge-info">Next</span>
+                                            {% else %}
+                                                {{ lecture.title }}
+                                            {% endif %}
+                                        </a>
+                                    </li>
+                                    {% else %}<li>{{ lecture.title }} <span class="badge badge-pill badge-secondary">PREMIUM VIDEO</span></li>
                                     {% endif %}{% else %}{% endif %}{% endfor %}
                                 </div>
                             </div>
@@ -62,8 +73,18 @@
                                         </button>
                                     {% endif %}
                                 </div>
-                                <div id="watchProgress" class="text-muted" style="display: none;">
-                                    <small><i class="fas fa-play-circle"></i> <span id="progressText">0% watched</span></small>
+                                <div class="d-flex align-items-center">
+                                    <div id="watchProgress" class="text-muted me-3" style="display: none;">
+                                        <small><i class="fas fa-play-circle"></i> <span id="progressText">0% watched</span></small>
+                                    </div>
+                                    {% if next_lecture %}
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" id="autoPlayToggle" checked>
+                                        <label class="form-check-label" for="autoPlayToggle">
+                                            <small>Auto-play next</small>
+                                        </label>
+                                    </div>
+                                    {% endif %}
                                 </div>
                             </div>
                             <div id="watchProgressBar" class="progress" style="height: 4px; display: none;">
@@ -116,6 +137,26 @@ let progressInterval;
 let hasStartedWatching = false;
 let watchedSegments = new Set();
 let videoDuration = 0;
+let nextLectureUrl = {% if next_lecture %}'{% url "lecture_detail" course.course_slug next_lecture.lecture_slug %}'{% else %}null{% endif %};
+let autoPlayCountdown = 0;
+let countdownInterval = null;
+
+// Load auto-play preference from localStorage
+window.addEventListener('load', () => {
+    const autoPlayToggle = document.getElementById('autoPlayToggle');
+    if (autoPlayToggle) {
+        const savedPreference = localStorage.getItem('courseAutoPlay');
+        if (savedPreference !== null) {
+            autoPlayToggle.checked = savedPreference === 'true';
+        }
+        
+        // Save preference when changed
+        autoPlayToggle.addEventListener('change', () => {
+            localStorage.setItem('courseAutoPlay', autoPlayToggle.checked);
+            console.log('Auto-play preference saved:', autoPlayToggle.checked);
+        });
+    }
+});
 
 // Extract YouTube video ID from embed URL
 function getYouTubeVideoId(url) {
@@ -391,26 +432,125 @@ function showAutoCompleteNotification() {
     document.getElementById('watchProgress').style.display = 'none';
     document.getElementById('watchProgressBar').style.display = 'none';
     
-    // Create a nice notification instead of alert
+    // Check if auto-play is enabled
+    const autoPlayToggle = document.getElementById('autoPlayToggle');
+    const autoPlayEnabled = autoPlayToggle ? autoPlayToggle.checked : false;
+    
+    // Create a nice notification with next video option
     const notification = document.createElement('div');
+    notification.id = 'completion-notification';
     notification.className = 'alert alert-success alert-dismissible fade show';
-    notification.innerHTML = `
-        <strong>🎉 Congratulations!</strong> You've completed this lecture!
-        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-        </button>
-    `;
+    
+    if (nextLectureUrl) {
+        if (autoPlayEnabled) {
+            notification.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>🎉 Congratulations!</strong> You've completed this lecture!
+                        <br><small>Next video will start in <span id="countdown">10</span> seconds...</small>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-primary btn-sm me-2" onclick="playNextVideo()">
+                            <i class="fas fa-play"></i> Play Next
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="cancelAutoPlay()">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Start countdown
+            startNextVideoCountdown();
+        } else {
+            notification.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>🎉 Congratulations!</strong> You've completed this lecture!
+                        <br><small>Ready for the next video?</small>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-primary btn-sm me-2" onclick="playNextVideo()">
+                            <i class="fas fa-play"></i> Play Next
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="cancelAutoPlay()">
+                            <i class="fas fa-times"></i> Stay Here
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    } else {
+        notification.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>🎉 Congratulations!</strong> You've completed this lecture!
+                    <br><small>This is the last video in the course.</small>
+                </div>
+                <div>
+                    <a href="{% url 'course_detail' course.course_slug %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-arrow-left"></i> Back to Course
+                    </a>
+                </div>
+            </div>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        `;
+    }
     
     // Insert notification at the top of the video card
     const cardBody = document.querySelector('.card-body');
     cardBody.insertBefore(notification, cardBody.firstChild);
+}
+
+// Start countdown for next video
+function startNextVideoCountdown() {
+    autoPlayCountdown = 10; // 10 seconds countdown
     
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.remove();
+    countdownInterval = setInterval(() => {
+        const countdownElement = document.getElementById('countdown');
+        if (countdownElement) {
+            countdownElement.textContent = autoPlayCountdown;
         }
-    }, 5000);
+        
+        autoPlayCountdown--;
+        
+        if (autoPlayCountdown < 0) {
+            clearInterval(countdownInterval);
+            playNextVideo();
+        }
+    }, 1000);
+}
+
+// Play next video immediately
+function playNextVideo() {
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+    }
+    
+    if (nextLectureUrl) {
+        console.log('Navigating to next lecture:', nextLectureUrl);
+        window.location.href = nextLectureUrl;
+    } else {
+        console.log('No next lecture available');
+    }
+}
+
+// Cancel auto-play
+function cancelAutoPlay() {
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+    
+    // Remove the notification
+    const notification = document.getElementById('completion-notification');
+    if (notification) {
+        notification.remove();
+    }
+    
+    console.log('Auto-play cancelled');
 }
 </script>
 {% endblock js %}
