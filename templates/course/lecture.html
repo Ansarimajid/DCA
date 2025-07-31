@@ -218,58 +218,94 @@ function onPlayerError(event) {
 
 // Player state change event
 function onPlayerStateChange(event) {
+    console.log('Player state changed:', event.data);
+    console.log('Current states - isCompleted:', isCompleted, 'autoCompleted:', autoCompleted);
+    
     switch(event.data) {
-        case YT.PlayerState.PLAYING:
-            if (!hasStartedWatching) {
-                hasStartedWatching = true;
-                showProgressTracking();
-            }
-            startProgressTracking();
-            break;
-        case YT.PlayerState.PAUSED:
-            stopProgressTracking();
+        case YT.PlayerState.UNSTARTED:
+            console.log('Video unstarted (-1)');
             break;
         case YT.PlayerState.ENDED:
+            console.log('Video ended (0)');
             stopProgressTracking();
             if (!isCompleted && !autoCompleted) {
                 console.log('Video ended, marking as complete...');
                 autoCompleted = true;
                 markLectureComplete(lectureId, true);
+            } else {
+                console.log('Not marking complete - already completed or auto-completed');
             }
             break;
+        case YT.PlayerState.PLAYING:
+            console.log('Video playing (1)');
+            if (!hasStartedWatching) {
+                hasStartedWatching = true;
+                showProgressTracking();
+                console.log('Started watching, showing progress tracking');
+            }
+            startProgressTracking();
+            break;
+        case YT.PlayerState.PAUSED:
+            console.log('Video paused (2)');
+            stopProgressTracking();
+            break;
+        case YT.PlayerState.BUFFERING:
+            console.log('Video buffering (3)');
+            break;
+        case YT.PlayerState.CUED:
+            console.log('Video cued (5)');
+            break;
+        default:
+            console.log('Unknown player state:', event.data);
     }
 }
 
 // Mark lecture complete function (updated to handle auto-completion)
 function markLectureComplete(lectureId, isAutoComplete = false) {
+    console.log('markLectureComplete called:', { lectureId, isAutoComplete, isCompleted, autoCompleted });
+    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (!csrfToken) {
+        console.error('CSRF token not found!');
+        return;
+    }
+    
+    console.log('Sending request to mark lecture complete...');
     fetch('/courses/lecture/complete', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            'X-CSRFToken': csrfToken.value
         },
         body: 'lecture_id=' + lectureId
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
     .then(data => {
+        console.log('Response data:', data);
         if (data.success) {
             // Replace button with completed badge
             document.getElementById('completionStatus').innerHTML = 
                 '<span class="badge badge-success"><i class="fas fa-check"></i> Completed</span>';
             
             if (isAutoComplete) {
+                console.log('Showing auto-complete notification');
                 showAutoCompleteNotification();
             } else {
                 alert('Lecture marked as completed!');
             }
             
             isCompleted = true;
+            console.log('Lecture marked as completed successfully');
         } else {
+            console.error('Server returned error:', data.message);
             alert('Error: ' + data.message);
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('Fetch error:', error);
         if (!isAutoComplete) {
             alert('An error occurred while marking the lecture as complete.');
         }
@@ -284,6 +320,7 @@ function showProgressTracking() {
 
 // Start tracking video progress
 function startProgressTracking() {
+    console.log('Starting progress tracking...');
     if (progressInterval) {
         clearInterval(progressInterval);
     }
@@ -298,12 +335,18 @@ function startProgressTracking() {
             if (duration > 0) {
                 const progressPercent = Math.round((currentTime / duration) * 100);
                 updateProgressDisplay(progressPercent);
+                
                 // Track watched segment
                 const currentSegment = Math.floor((currentTime / videoDuration) * 100);
                 watchedSegments.add(currentSegment);
 
                 // Check if the majority of the video has been watched
                 const uniqueSegmentsWatched = watchedSegments.size;
+
+                // Debug logging every 10 seconds (when progress % is divisible by 10)
+                if (progressPercent % 10 === 0 && progressPercent > 0) {
+                    console.log(`Progress: ${progressPercent}%, Segments: ${uniqueSegmentsWatched}%, Time: ${Math.round(currentTime)}/${Math.round(duration)}s`);
+                }
 
                 // Require at least 75% of segments to be watched for lecture completion
                 if (uniqueSegmentsWatched >= 75 && !isCompleted && !autoCompleted) {
@@ -318,6 +361,8 @@ function startProgressTracking() {
                     markLectureComplete(lectureId, true);
                 }
             }
+        } else {
+            console.log('Player methods not available for progress tracking');
         }
     }, 1000); // Update every second
 }
