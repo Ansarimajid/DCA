@@ -1,10 +1,6 @@
-{% extends 'base.html' %}
-
-{% block title %} {{ video.title }} | {{ course.title }}
-{% endblock title %}
-
-{% block head %}
-{% endblock head %}
+{% extends "base.html" %}
+{% block title %} {{ video.title }} | {{ course.title }} {% endblock title %}
+{% block head %}{% endblock head %}
 {% load humanize %}
 {% block body %}
 <div class="container-fluid my-3">
@@ -12,46 +8,53 @@
         <div class="col-md-4">
             <div class="card shadow-lg p-3 mb-5 bg-white rounded">
                 <div class="card-header">
-                    {{ course.title }}
+                    <h4>{{ course.title }}</h4>
                 </div>
                 <div class="card-body">
                     <h5 class="card-title">{{ lecture.title }}</h5>
-                    <div class="accordion" id="accordionExample">
+                    <div class="accordion mb-2" id="accordionExample">
                         {% for section in section %}
                         <div class="card">
                             <div class="card-header" id="headingOne{{ section.id }}">
                                 <h2 class="mb-0">
-                                    <button class="btn btn-block text-left collapsed" type="button"
+                                    <button class="btn btn-link btn-block text-left" type="button"
                                         data-toggle="collapse" data-target="#collapseOne{{ section.id }}"
-                                        aria-expanded="true" aria-controls="collapseOne{{ section.id }}">
-                                        <img src="https://img.icons8.com/pastel-glyph/15/000000/plus.png" />
-                                        {{ section.title }}
+                                        aria-expanded="{% for lecture in lecture %}{% if lecture.section == section and lecture.id == video.id %}true{% endif %}{% endfor %}" aria-controls="collapseOne{{ section.id }}">
+                                        <span class="fas fa-plus-circle"></span> {{ section.title }}
                                     </button>
                                 </h2>
                             </div>
-                            <div id="collapseOne{{ section.id }}" class="collapse show"
+                            <div id="collapseOne{{ section.id }}" class="collapse{% for lecture in lecture %}{% if lecture.section == section and lecture.id == video.id %} show{% endif %}{% endfor %}"
                                 aria-labelledby="headingOne{{ section.id }}" data-parent="#accordionExample">
-                                <div class="card-body">{% for lecture in lecture %}{% if lecture.section == section %}
-                                {% if lecture.lecture_type == "NOT PREMIUM" %}
-                                    <li>
-                                        <a href="{{ lecture.lecture_slug }}" 
-                                           class="{% if lecture.id == video.id %}text-primary font-weight-bold{% endif %}">
-                                            {% if lecture.id == video.id %}
+                                <div class="card-body">
+                                    <ul class="list-unstyled">
+                                        {% for lecture in lecture %}
+                                        {% if lecture.section == section %}
+                                        {% if lecture.lecture_type == "NOT PREMIUM" %}
+                                        <li class="py-1">
+                                            <a href="{{ lecture.lecture_slug }}"
+                                               class="{% if lecture.id == video.id %}text-primary font-weight-bold{% else %}text-dark{% endif %}">
+                                                {% if lecture.id == video.id %}
                                                 <i class="fas fa-play-circle"></i> {{ lecture.title }} <span class="badge badge-primary">Current</span>
-                                            {% elif previous_lecture and lecture.id == previous_lecture.id %}
+                                                {% elif previous_lecture and lecture.id == previous_lecture.id %}
                                                 <i class="fas fa-backward"></i> {{ lecture.title }} <span class="badge badge-secondary">Previous</span>
-                                            {% elif next_lecture and lecture.id == next_lecture.id %}
+                                                {% elif next_lecture and lecture.id == next_lecture.id %}
                                                 <i class="fas fa-forward"></i> {{ lecture.title }} <span class="badge badge-info">Next</span>
-                                            {% else %}
+                                                {% else %}
                                                 {{ lecture.title }}
-                                            {% endif %}
-                                        </a>
-                                    </li>
-                                    {% else %}<li>{{ lecture.title }} <span class="badge badge-pill badge-secondary">PREMIUM VIDEO</span></li>
-                                    {% endif %}{% else %}{% endif %}{% endfor %}
+                                                {% endif %}
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="py-1">{{ lecture.title }} <span class="badge badge-pill badge-secondary">PREMIUM VIDEO</span></li>
+                                        {% endif %}
+                                        {% endif %}
+                                        {% endfor %}
+                                    </ul>
                                 </div>
                             </div>
-                        </div>{% endfor %}
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
@@ -60,12 +63,10 @@
             <div class="card shadow-lg">
                 <h5 class="card-header">{{ video.title }}</h5>
                 <div class="card-body">
-                    <!-- Navigation buttons -->
                     <div class="d-flex justify-content-between mb-3">
-                        <!-- Previous lecture button -->
                         {% if previous_lecture %}
                         <a href="{% url 'lecture_detail' course.course_slug previous_lecture.lecture_slug %}"
-                           class="btn btn-outline-primary"
+                           class="btn btn-outline-secondary"
                            title="Previous: {{ previous_lecture.title }}">
                             <i class="fas fa-chevron-left"></i> Previous
                         </a>
@@ -73,10 +74,9 @@
                         <div></div>
                         {% endif %}
 
-                        <!-- Next lecture button -->
                         {% if next_lecture %}
                         <a href="{% url 'lecture_detail' course.course_slug next_lecture.lecture_slug %}"
-                           class="btn btn-outline-primary"
+                           class="btn btn-outline-secondary"
                            title="Next: {{ next_lecture.title }}">
                             Next <i class="fas fa-chevron-right"></i>
                         </a>
@@ -84,20 +84,17 @@
                         <div></div>
                         {% endif %}
                     </div>
-                    
-                    <!-- Keyboard shortcuts help -->
+
                     <div class="text-center mb-2">
                         <small class="text-muted">
-                            <i class="fas fa-keyboard"></i> 
+                            <i class="fas fa-keyboard"></i>
                             Shortcuts: <kbd>Ctrl + ←</kbd> Previous | <kbd>Ctrl + →</kbd> Next | <kbd>Space</kbd> Play/Pause
                         </small>
                     </div>
-                    <!-- Video.js Player -->
-                    <video-js id="player" class="video-js vjs-default-skin" 
-                              controls 
-                              preload="auto" 
-                              width="100%" 
-                              height="450" 
+
+                    <video-js id="player" class="video-js vjs-fluid"
+                              controls
+                              preload="auto"
                               data-setup="{}">
                         <source src="{{ video.video_url }}" type="video/youtube" />
                         <p class="vjs-no-js">
@@ -105,37 +102,37 @@
                             <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>.
                         </p>
                     </video-js>
-                    <!-- Fallback iframe (hidden by default, shown if Video.js fails) -->
+
                     <iframe id="fallback-player" width="100%" height="450" src="{{ video.video_url }}" frameborder="0" allowfullscreen style="display: none;"></iframe>
                     <div class="mt-3">
                         {% if user.is_authenticated %}
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div id="completionStatus">
-                                    {% if lecture_completed %}
-                                        <span class="badge badge-success"><i class="fas fa-check"></i> Completed</span>
-                                    {% else %}
-                                        <button id="markCompleteBtn" class="btn btn-success btn-sm" onclick="markLectureComplete({{ video.id }})">
-                                            <i class="fas fa-check"></i> Mark as Complete
-                                        </button>
-                                    {% endif %}
-                                </div>
-                                <div class="d-flex align-items-center">
-                                    <div id="watchProgress" class="text-muted me-3" style="display: none;">
-                                        <small><i class="fas fa-play-circle"></i> <span id="progressText">0% watched</span></small>
-                                    </div>
-                                    {% if next_lecture %}
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="checkbox" id="autoPlayToggle" checked>
-                                        <label class="form-check-label" for="autoPlayToggle">
-                                            <small>Auto-play next</small>
-                                        </label>
-                                    </div>
-                                    {% endif %}
-                                </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div id="completionStatus">
+                                {% if lecture_completed %}
+                                <span class="badge badge-success"><i class="fas fa-check"></i> Completed</span>
+                                {% else %}
+                                <button id="markCompleteBtn" class="btn btn-outline-success btn-sm" onclick="markLectureComplete({{ video.id }})">
+                                    <i class="fas fa-check"></i> Mark as Complete
+                                </button>
+                                {% endif %}
                             </div>
-                            <div id="watchProgressBar" class="progress" style="height: 4px; display: none;">
-                                <div class="progress-bar bg-warning" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            <div class="d-flex align-items-center">
+                                <div id="watchProgress" class="text-muted mr-3" style="display: none;">
+                                    <small><i class="fas fa-play-circle"></i> <span id="progressText">0% watched</span></small>
+                                </div>
+                                {% if next_lecture %}
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="autoPlayToggle" checked>
+                                    <label class="form-check-label" for="autoPlayToggle">
+                                        <small>Auto-play next</small>
+                                    </label>
+                                </div>
+                                {% endif %}
                             </div>
+                        </div>
+                        <div id="watchProgressBar" class="progress" style="height: 4px; display: none;">
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
                         {% endif %}
                     </div>
                 </div>
@@ -149,7 +146,7 @@
                                 {% csrf_token %}
                                 <div class="form-group">
                                     <input type="text" class="form-control" name="comment" id="comment"
-                                        aria-describedby="text" placeholder="Enter Comment here">
+                                           aria-describedby="text" placeholder="Enter Comment here">
                                 </div>
                                 <input type="hidden" name="lecture_id" id="lecture_id" value="{{ video.id }}">
                                 <button type="submit" class="btn btn-primary">Submit</button>
@@ -160,19 +157,20 @@
                     <div class="row my-3">
                         <div class="col-md-1"><img src="https://img.icons8.com/doodle/50/000000/user-male.png" /></div>
                         <div class="col-md-11"><b> {{ comment.user.username }}</b> <span class="badge badge-secondary">
-                                {{ comment.timestamp | naturaltime }}</span>
-                            <div> {{ comment.comment}}</div>
+                            {{ comment.timestamp | naturaltime }}</span>
+                            <div> {{ comment.comment }}</div>
                         </div>
-                    </div>{% endfor %}
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
     </div>
 </div>
 {% endblock body %}
-
 {% block js %}
 <script>
+// JavaScript Enhancements
 let player;
 let lectureId = {{ video.id }};
 let isCompleted = {% if lecture_completed %}true{% else %}false{% endif %};
@@ -183,30 +181,24 @@ let watchedSegments = new Set();
 let videoDuration = 0;
 let nextLectureUrl = {% if next_lecture %}'{% url "lecture_detail" course.course_slug next_lecture.lecture_slug %}'{% else %}null{% endif %};
 let previousLectureUrl = {% if previous_lecture %}'{% url "lecture_detail" course.course_slug previous_lecture.lecture_slug %}'{% else %}null{% endif %};
-let autoPlayCountdown = 0;
+let autoPlayCountdown = 10;
 let countdownInterval = null;
 
-// Load auto-play preference from localStorage
 window.addEventListener('load', () => {
     const autoPlayToggle = document.getElementById('autoPlayToggle');
     if (autoPlayToggle) {
         const savedPreference = localStorage.getItem('courseAutoPlay');
-        if (savedPreference !== null) {
-            autoPlayToggle.checked = savedPreference === 'true';
-        }
-        
-        // Save preference when changed
+        autoPlayToggle.checked = savedPreference !== null ? savedPreference === 'true' : true;
+
         autoPlayToggle.addEventListener('change', () => {
             localStorage.setItem('courseAutoPlay', autoPlayToggle.checked);
             console.log('Auto-play preference saved:', autoPlayToggle.checked);
         });
     }
-    
-    // Add keyboard shortcuts for navigation
+
     document.addEventListener('keydown', (event) => {
-        // Only if not typing in an input field
         if (event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') {
-            switch(event.key) {
+            switch (event.key) {
                 case 'ArrowLeft':
                     if (event.ctrlKey && previousLectureUrl) {
                         console.log('Keyboard shortcut: Previous lecture');
@@ -219,26 +211,20 @@ window.addEventListener('load', () => {
                         window.location.href = nextLectureUrl;
                     }
                     break;
-                case ' ': // Spacebar to toggle play/pause
+                case ' ':
                     if (player && player.paused !== undefined) {
                         event.preventDefault();
-                        if (player.paused()) {
-                            player.play();
-                        } else {
-                            player.pause();
-                        }
+                        player.paused() ? player.play() : player.pause();
                     }
                     break;
             }
         }
     });
-    
-    // Initialize Video.js player
+
     initializePlayer();
 });
 
 function initializePlayer() {
-    // Initialize Video.js player with options
     player = videojs('player', {
         techOrder: ['youtube'],
         sources: [{
@@ -258,26 +244,20 @@ function initializePlayer() {
             cc_load_policy: 0,
             enablejsapi: 1
         },
-        fluid: false,
-        responsive: true,
-        width: '100%',
-        height: 450
+        fluid: true,
+        responsive: true
     });
 
-    // Player ready event
     player.ready(() => {
         console.log('Video.js player is ready');
-        // Hide fallback iframe since Video.js player is working
         document.getElementById('fallback-player').style.display = 'none';
     });
 
-    // Player error event
     player.on('error', (e) => {
         console.error('Video.js player error:', e);
         showFallbackPlayer();
     });
 
-    // Player state change event
     player.on('play', () => {
         if (!hasStartedWatching) {
             hasStartedWatching = true;
@@ -292,22 +272,19 @@ function initializePlayer() {
     });
 
     player.on('ended', () => {
-        console.log('Video ended');
         stopProgressTracking();
+        console.log('Video ended');
         if (!isCompleted && !autoCompleted) {
-            console.log('Video ended, marking as complete...');
             autoCompleted = true;
+            console.log('Video ended, marking as complete...');
             markLectureComplete(lectureId, true);
         }
     });
 }
 
-// Show fallback iframe if Video.js fails
 function showFallbackPlayer() {
     console.log('Video.js failed, showing fallback iframe');
     document.getElementById('fallback-player').style.display = 'block';
-    document.getElementById('player').style.display = 'none';
-    // Hide progress tracking for fallback since we can't track iframe video progress
     if (document.getElementById('watchProgress')) {
         document.getElementById('watchProgress').style.display = 'none';
     }
@@ -316,77 +293,14 @@ function showFallbackPlayer() {
     }
 }
 
-// Player ready event
-function onPlayerReady(event) {
-    console.log('YouTube player is ready and working');
-    // Hide fallback iframe since API player is working
-    const fallback = document.getElementById('fallback-player');
-    if (fallback) {
-        fallback.style.display = 'none';
-    }
-}
-
-// Player error event
-function onPlayerError(event) {
-    console.error('YouTube player error:', event.data);
-    showFallbackPlayer();
-}
-
-// Player state change event
-function onPlayerStateChange(event) {
-    console.log('Player state changed:', event.data);
-    console.log('Current states - isCompleted:', isCompleted, 'autoCompleted:', autoCompleted);
-    
-    switch(event.data) {
-        case YT.PlayerState.UNSTARTED:
-            console.log('Video unstarted (-1)');
-            break;
-        case YT.PlayerState.ENDED:
-            console.log('Video ended (0)');
-            stopProgressTracking();
-            if (!isCompleted && !autoCompleted) {
-                console.log('Video ended, marking as complete...');
-                autoCompleted = true;
-                markLectureComplete(lectureId, true);
-            } else {
-                console.log('Not marking complete - already completed or auto-completed');
-            }
-            break;
-        case YT.PlayerState.PLAYING:
-            console.log('Video playing (1)');
-            if (!hasStartedWatching) {
-                hasStartedWatching = true;
-                showProgressTracking();
-                console.log('Started watching, showing progress tracking');
-            }
-            startProgressTracking();
-            break;
-        case YT.PlayerState.PAUSED:
-            console.log('Video paused (2)');
-            stopProgressTracking();
-            break;
-        case YT.PlayerState.BUFFERING:
-            console.log('Video buffering (3)');
-            break;
-        case YT.PlayerState.CUED:
-            console.log('Video cued (5)');
-            break;
-        default:
-            console.log('Unknown player state:', event.data);
-    }
-}
-
-// Mark lecture complete function (updated to handle auto-completion)
 function markLectureComplete(lectureId, isAutoComplete = false) {
     console.log('markLectureComplete called:', { lectureId, isAutoComplete, isCompleted, autoCompleted });
-    
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
     if (!csrfToken) {
         console.error('CSRF token not found!');
         return;
     }
-    
-    console.log('Sending request to mark lecture complete...');
+
     fetch('/courses/lecture/complete', {
         method: 'POST',
         headers: {
@@ -395,95 +309,68 @@ function markLectureComplete(lectureId, isAutoComplete = false) {
         },
         body: 'lecture_id=' + lectureId
     })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
-        console.log('Response data:', data);
         if (data.success) {
-            // Replace button with completed badge
-            document.getElementById('completionStatus').innerHTML = 
+            document.getElementById('completionStatus').innerHTML =
                 '<span class="badge badge-success"><i class="fas fa-check"></i> Completed</span>';
-            
             if (isAutoComplete) {
-                console.log('Showing auto-complete notification');
                 showAutoCompleteNotification();
             } else {
                 alert('Lecture marked as completed!');
             }
-            
             isCompleted = true;
-            console.log('Lecture marked as completed successfully');
         } else {
-            console.error('Server returned error:', data.message);
             alert('Error: ' + data.message);
         }
     })
     .catch(error => {
         console.error('Fetch error:', error);
-        if (!isAutoComplete) {
-            alert('An error occurred while marking the lecture as complete.');
-        }
     });
 }
 
-// Show progress tracking elements
 function showProgressTracking() {
     document.getElementById('watchProgress').style.display = 'block';
     document.getElementById('watchProgressBar').style.display = 'block';
 }
 
-// Start tracking video progress
 function startProgressTracking() {
-    console.log('Starting progress tracking...');
     if (progressInterval) {
         clearInterval(progressInterval);
     }
-    
+
     progressInterval = setInterval(() => {
         if (player && player.getCurrentTime && player.getDuration) {
             const currentTime = player.getCurrentTime();
             const duration = player.getDuration();
 
-            videoDuration = duration; // Store for segment tracking
-
             if (duration > 0) {
                 const progressPercent = Math.round((currentTime / duration) * 100);
                 updateProgressDisplay(progressPercent);
-                
-                // Track watched segment
+
                 const currentSegment = Math.floor((currentTime / videoDuration) * 100);
                 watchedSegments.add(currentSegment);
 
-                // Check if the majority of the video has been watched
                 const uniqueSegmentsWatched = watchedSegments.size;
 
-                // Debug logging every 10 seconds (when progress % is divisible by 10)
                 if (progressPercent % 10 === 0 && progressPercent > 0) {
                     console.log(`Progress: ${progressPercent}%, Segments: ${uniqueSegmentsWatched}%, Time: ${Math.round(currentTime)}/${Math.round(duration)}s`);
                 }
 
-                // Require at least 75% of segments to be watched for lecture completion
                 if (uniqueSegmentsWatched >= 75 && !isCompleted && !autoCompleted) {
-                    console.log('75% of segments watched, marking as complete...');
                     autoCompleted = true;
                     markLectureComplete(lectureId, true);
                 }
-                // Also auto-complete if 95% progress is reached
+
                 if (progressPercent >= 95 && !isCompleted && !autoCompleted) {
-                    console.log('95% watched, marking as complete...');
                     autoCompleted = true;
                     markLectureComplete(lectureId, true);
                 }
             }
-        } else {
-            console.log('Player methods not available for progress tracking');
         }
-    }, 1000); // Update every second
+    }, 1000);
 }
 
-// Stop tracking video progress
 function stopProgressTracking() {
     if (progressInterval) {
         clearInterval(progressInterval);
@@ -491,7 +378,6 @@ function stopProgressTracking() {
     }
 }
 
-// Update progress display
 function updateProgressDisplay(percent) {
     const uniqueSegments = watchedSegments.size;
     const segmentText = uniqueSegments > 1 ? `${percent}% watched (${uniqueSegments}% coverage)` : `${percent}% watched`;
@@ -501,21 +387,17 @@ function updateProgressDisplay(percent) {
     progressBar.setAttribute('aria-valuenow', percent);
 }
 
-// Show auto-complete notification
 function showAutoCompleteNotification() {
-    // Hide progress tracking when completed
     document.getElementById('watchProgress').style.display = 'none';
     document.getElementById('watchProgressBar').style.display = 'none';
-    
-    // Check if auto-play is enabled
+
     const autoPlayToggle = document.getElementById('autoPlayToggle');
     const autoPlayEnabled = autoPlayToggle ? autoPlayToggle.checked : false;
-    
-    // Create a nice notification with next video option
+
     const notification = document.createElement('div');
     notification.id = 'completion-notification';
     notification.className = 'alert alert-success alert-dismissible fade show';
-    
+
     if (nextLectureUrl) {
         if (autoPlayEnabled) {
             notification.innerHTML = `
@@ -532,10 +414,7 @@ function showAutoCompleteNotification() {
                             <i class="fas fa-times"></i> Cancel
                         </button>
                     </div>
-                </div>
-            `;
-            
-            // Start countdown
+                </div>`;
             startNextVideoCountdown();
         } else {
             notification.innerHTML = `
@@ -552,8 +431,7 @@ function showAutoCompleteNotification() {
                             <i class="fas fa-times"></i> Stay Here
                         </button>
                     </div>
-                </div>
-            `;
+                </div>`;
         }
     } else {
         notification.innerHTML = `
@@ -570,27 +448,20 @@ function showAutoCompleteNotification() {
             </div>
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
-            </button>
-        `;
+            </button>`;
     }
-    
-    // Insert notification at the top of the video card
-    const cardBody = document.querySelector('.card-body');
-    cardBody.insertBefore(notification, cardBody.firstChild);
+    document.querySelector('.card-body').insertBefore(notification, document.querySelector('.card-body').firstChild);
 }
 
-// Start countdown for next video
 function startNextVideoCountdown() {
-    autoPlayCountdown = 10; // 10 seconds countdown
-    
+    autoPlayCountdown = 10;
     countdownInterval = setInterval(() => {
         const countdownElement = document.getElementById('countdown');
         if (countdownElement) {
             countdownElement.textContent = autoPlayCountdown;
         }
-        
         autoPlayCountdown--;
-        
+
         if (autoPlayCountdown < 0) {
             clearInterval(countdownInterval);
             playNextVideo();
@@ -598,34 +469,24 @@ function startNextVideoCountdown() {
     }, 1000);
 }
 
-// Play next video immediately
 function playNextVideo() {
     if (countdownInterval) {
         clearInterval(countdownInterval);
     }
-    
     if (nextLectureUrl) {
-        console.log('Navigating to next lecture:', nextLectureUrl);
         window.location.href = nextLectureUrl;
-    } else {
-        console.log('No next lecture available');
     }
 }
 
-// Cancel auto-play
 function cancelAutoPlay() {
     if (countdownInterval) {
         clearInterval(countdownInterval);
         countdownInterval = null;
     }
-    
-    // Remove the notification
     const notification = document.getElementById('completion-notification');
     if (notification) {
         notification.remove();
     }
-    
-    console.log('Auto-play cancelled');
 }
 </script>
 {% endblock js %}
