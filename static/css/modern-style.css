@@ -282,3 +282,123 @@ body {
   height: 40px;
   color: white;
 }
+
+/* Udemy-like Navigation Buttons */
+.btn-udemy-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  background: linear-gradient(135deg, #a435f0 0%, #8b2fc4 100%);
+  border: 2px solid transparent;
+  border-radius: 50%;
+  color: #fff;
+  text-decoration: none;
+  transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(164, 53, 240, 0.3);
+}
+
+.btn-udemy-nav::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+  border-radius: 50%;
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 1;
+}
+
+.btn-udemy-nav i {
+  position: relative;
+  z-index: 2;
+  font-size: 18px;
+  transition: all 0.3s ease;
+}
+
+.btn-udemy-nav:hover {
+  text-decoration: none;
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(164, 53, 240, 0.4), 0 0 0 3px rgba(164, 53, 240, 0.1);
+  border-color: rgba(164, 53, 240, 0.3);
+}
+
+.btn-udemy-nav:hover::before {
+  opacity: 1;
+}
+
+.btn-udemy-nav:hover i {
+  color: #a435f0;
+  transform: scale(1.1);
+}
+
+.btn-udemy-nav:active {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 15px rgba(164, 53, 240, 0.5);
+}
+
+.btn-udemy-nav.btn-previous {
+  margin-right: 20px;
+  animation: pulseLeft 2s infinite;
+}
+
+.btn-udemy-nav.btn-next {
+  margin-left: 20px;
+  animation: pulseRight 2s infinite;
+}
+
+/* Pulse animations */
+@keyframes pulseLeft {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(164, 53, 240, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 15px rgba(164, 53, 240, 0.5), -5px 0 15px rgba(164, 53, 240, 0.2);
+  }
+}
+
+@keyframes pulseRight {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(164, 53, 240, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 15px rgba(164, 53, 240, 0.5), 5px 0 15px rgba(164, 53, 240, 0.2);
+  }
+}
+
+/* Focus state for accessibility */
+.btn-udemy-nav:focus {
+  outline: none;
+  box-shadow: 0 8px 25px rgba(164, 53, 240, 0.4), 0 0 0 4px rgba(164, 53, 240, 0.2);
+}
+
+/* Responsive adjustments for navigation buttons */
+@media (max-width: 768px) {
+  .btn-udemy-nav {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .btn-udemy-nav i {
+    font-size: 16px;
+  }
+  
+  .btn-udemy-nav.btn-previous {
+    margin-right: 16px;
+  }
+  
+  .btn-udemy-nav.btn-next {
+    margin-left: 16px;
+  }
+  
+  .btn-udemy-nav:hover {
+    transform: translateY(-2px) scale(1.03);
+  }
+}
