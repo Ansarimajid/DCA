@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Home
+{% endblock title %}
+
+{% block head %}
+{% endblock head %}
+
+{% block body %}
+<!-- Hero Section -->
+<div class="hero-section">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center">
+      <div class="col-lg-6">
+        <h1 class="display-3 fade-in-up">Learn Without Limits</h1>
+        <p class="lead fade-in-up">Start, switch, or advance your career with more than 1,000 courses, Professional Certificates, and degrees from world-class universities and companies.</p>
+        <div class="fade-in-up">
+          <a href="{% url 'courses' %}" class="btn btn-warning btn-lg px-4 py-3 mr-3">Start Learning Today</a>
+          <a href="{% url 'courses' %}" class="btn btn-outline-light btn-lg px-4 py-3">Browse Courses</a>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <img src="https://img.freepik.com/free-vector/online-courses-tutorials_52683-37860.jpg" class="img-fluid rounded fade-in-up" alt="Learning">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Featured Courses Section -->
+<div class="container-fluid px-4 my-5">
+  <div class="row">
+    <div class="col-12 text-center mb-5">
+      <h2 class="display-4 text-dark">Featured Courses</h2>
+      <p class="lead text-muted">Choose from over 100,000 online video courses with new additions published every month</p>
+    </div>
+  </div>
+</div>
+
+<!-- Features Section -->
+<div class="feature-section bg-light">
+  <div class="container-fluid px-4">
+    <div class="row">
+      <div class="col-md-4 mb-4">
+        <div class="feature-item fade-in-up">
+          <i class="fas fa-play-circle fa-4x" style="color: #a435f0;"></i>
+          <h5>Learn at your own pace</h5>
+          <p class="text-muted">Access courses anytime, anywhere with lifetime access</p>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4">
+        <div class="feature-item fade-in-up">
+          <i class="fas fa-certificate fa-4x" style="color: #f69c55;"></i>
+          <h5>Get certified</h5>
+          <p class="text-muted">Earn certificates upon completion to boost your career</p>
+        </div>
+      </div>
+      <div class="col-md-4 mb-4">
+        <div class="feature-item fade-in-up">
+          <i class="fas fa-users fa-4x" style="color: #28a745;"></i>
+          <h5>Join our community</h5>
+          <p class="text-muted">Connect with learners and instructors worldwide</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock body %}
