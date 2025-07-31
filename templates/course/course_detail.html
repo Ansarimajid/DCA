@@ -1,71 +1,135 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ course.title }} | Courses Details
-{% endblock title %}
+{% block title %}{{ course.title }} | Courses Details{% endblock title %}
 
 {% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<style>
+    .course-sidebar {
+        position: sticky;
+        top: 20px;
+    }
+    .course-content {
+        border-radius: 6px;
+        border: 1px solid #d1d7dc;
+    }
+    .section-header {
+        background: #f7f9fa;
+        padding: 16px;
+        border: none;
+    }
+    .section-toggle {
+        font-weight: 700;
+        color: #1c1d1f;
+        width: 100%;
+        text-align: left;
+        padding: 0;
+    }
+    .lecture-item {
+        padding: 8px 16px;
+        border-top: 1px solid #d1d7dc;
+        display: flex;
+        align-items: center;
+    }
+    .lecture-title {
+        margin-left: 12px;
+        flex-grow: 1;
+    }
+    .progress-circle {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #eceb98;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+    }
+</style>
 {% endblock head %}
 
 {% block body %}
-<div class="container my-4">
+<div class="container-fluid px-5 my-4">
     <div class="row">
-        <div class="col-sm-3 ">
-            <div class="card shadow p-3 mb-5 bg-white rounded" style="width: 18rem;">
-                <img src="{{ course.thumbnail_url }}" class="card-img-top" alt="...">
-                <div class="card-body">
-                    <h5 class="card-title">{{ course.title }}</h5>
-                    <p class="card-text">{{ course.description | truncatechars:100}}</p>
+        <!-- Course Content Section -->
+        <div class="col-lg-8">
+            <div class="course-content mb-4">
+                <div class="p-4">
+                    <h2>{{ course.title }}</h2>
+                    <p class="lead">{{ course.description }}</p>
                 </div>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item"><img src="https://img.icons8.com/android/20/000000/time.png"/> {{ course.course_length }}</li>
-                    <li class="list-group-item"><img src="https://img.icons8.com/material-outlined/20/000000/video.png"/> {{ lecture.count }} Videos</li>      
-                    <li class="list-group-item">{% if subscription_course %}<img src="https://img.icons8.com/metro/20/000000/in-progress.png"/> Progress <span class="badge badge-danger">{{ subscription_course.progress }}</span>
-                        <div class="progress mt-2" style="height: 10px;">
-                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ subscription_course.progress }}" aria-valuenow="{{ subscription_course.progress|cut:' %' }}" aria-valuemin="0" aria-valuemax="100"></div>
+
+                <div class="accordion" id="courseContent">
+                    {% for section in section %}
+                    <div class="card border-0">
+                        <div class="section-header" id="heading{{ section.id }}">
+                            <button class="section-toggle btn" type="button" data-toggle="collapse" 
+                                    data-target="#collapse{{ section.id }}" aria-expanded="true">
+                                <i class="fas fa-chevron-down mr-2"></i>
+                                {{ section.title }}
+                            </button>
                         </div>
-                    {% else %}<img src="https://img.icons8.com/metro/20/000000/price-tag-euro.png"/> {% if course.course_type == "PAID" %}₹ {{ course.course_price }} /-{% else %}{{ course.course_type }}{% endif %}{% endif %}</li>
-                </ul>
-                <div class="card-body">{% if subscription_course %}<span class="badge badge-secondary">SUBSCRIBED</span>{% else %}
-                    <a href="{% url 'Checkout' course.course_slug %}" class="btn btn-info">Subscribe Now</a>
-                {% endif %}</div>
+
+                        <div id="collapse{{ section.id }}" class="collapse show" data-parent="#courseContent">
+                            {% for lecture in lecture %}
+                                {% if lecture.section == section %}
+                                <div class="lecture-item">
+                                    <i class="fas fa-play-circle"></i>
+                                    <span class="lecture-title">{{ lecture.title }}</span>
+                                    {% if lecture.lecture_type == "PREMIUM" %}
+                                        {% if subscription_course %}
+                                            <a href="{% url 'lecture_detail' course.course_slug lecture.lecture_slug %}" 
+                                               class="btn btn-sm btn-outline-dark">Watch</a>
+                                        {% else %}
+                                            <span class="badge badge-secondary">Premium</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <a href="{% url 'lecture_detail' course.course_slug lecture.lecture_slug %}" 
+                                           class="btn btn-sm btn-outline-dark">Watch</a>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
-        <div class="col-sm-1">
 
-        </div>
-        <div class="col-sm-8 px-0 mx-0">
-            <div class="card shadow-lg p-3 mb-5 bg-white rounded">
-                <div class="card-header">
-                    {{ course.title }}
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ lecture.title }}</h5>
-                    <p class="card-text">{{ course.description }}</p>
-                    <div class="accordion" id="accordionExample">
-                        {% for section in section %}
-                        <div class="card">
-                            <div class="card-header" id="headingOne{{ section.id }}">
-                                <h2 class="mb-0">
-                                    <button class="btn btn-block text-left" type="button" data-toggle="collapse"
-                                        data-target="#collapseOne{{ section.id }}" aria-expanded="true"
-                                        aria-controls="collapseOne{{ section.id }}">
-                                        <img src="https://img.icons8.com/pastel-glyph/15/000000/plus.png"/> {{ section.title }}
-                                    </button>
-                                </h2>
-                            </div>
+        <!-- Course Sidebar -->
+        <div class="col-lg-4">
+            <div class="course-sidebar card shadow">
+                <img src="{{ course.thumbnail_url }}" class="card-img-top" alt="{{ course.title }}">
+                <div class="card-body text-center">
+                    {% if subscription_course %}
+                        <div class="progress-circle">
+                            <h3 class="mb-0">{{ subscription_course.progress }}</h3>
+                        </div>
+                        <div class="progress mb-3">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ subscription_course.progress }}" 
+                                 aria-valuenow="{{ subscription_course.progress|cut:' %' }}" 
+                                 aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <span class="badge badge-success mb-3">ENROLLED</span>
+                    {% else %}
+                        <h3 class="mb-3">
+                            {% if course.course_type == "PAID" %}₹{{ course.course_price }}/-{% else %}{{ course.course_type }}{% endif %}
+                        </h3>
+                        <a href="{% url 'Checkout' course.course_slug %}" class="btn btn-danger btn-lg btn-block">Enroll Now</a>
+                    {% endif %}
 
-                            <div id="collapseOne{{ section.id }}" class="collapse show"
-                                aria-labelledby="headingOne{{ section.id }}" data-parent="#accordionExample">
-                                <div class="card-body">{% for lecture in lecture %}{% if lecture.section == section %}
-                                {% if lecture.lecture_type == "NOT PREMIUM" %}
-                                    <li><a href="{% url 'lecture_detail' course.course_slug lecture.lecture_slug %}"><b style="font-size: small; color: black;">{{ lecture.title }}</b></a></li>
-                                    {% else %}<li>{% if subscription_course %}<a href="{% url 'lecture_detail' course.course_slug lecture.lecture_slug %}"><b style="font-size: small; color: black;">{{ lecture.title }}</b> <span class="badge badge-pill badge-secondary">PREMIUM VIDEO</span></a>
-                                    {% else %}<b style="font-size: small; color: black;">{{ lecture.title }}</b> <span class="badge badge-pill badge-secondary">PREMIUM VIDEO</span>{% endif %}</li>
-                                    {% endif %}
-                                    {% else %}{% endif %}{% endfor %}
-                                </div>
-                            </div>
-                        </div>{% endfor %}
+                    <hr>
+                    <div class="course-stats">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span><i class="far fa-clock"></i> Duration</span>
+                            <span>{{ course.course_length }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span><i class="fas fa-video"></i> Lectures</span>
+                            <span>{{ lecture.count }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -73,9 +137,3 @@
     </div>
 </div>
 {% endblock body %}
-
-{% block js %}
-<script>
-    $("#loginModal").modal()
-</script>
-{% endblock js %}

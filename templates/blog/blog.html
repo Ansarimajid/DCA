@@ -3,29 +3,90 @@
 {% block title %}Course Blogs by Startup{% endblock title %}
 
 {% block head %}
+<style>
+    .blog-header {
+        background: #1c1d1f;
+        color: white;
+        padding: 48px 0;
+        margin-bottom: 48px;
+    }
+    .blog-card {
+        border: none;
+        transition: transform 0.2s;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+    .blog-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+    }
+    .blog-image {
+        height: 200px;
+        object-fit: cover;
+    }
+    .blog-meta {
+        font-size: 0.9rem;
+        color: #6a6f73;
+    }
+    .author-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    .read-more {
+        color: #a435f0;
+        text-decoration: none;
+        font-weight: 700;
+    }
+    .read-more:hover {
+        color: #8710e8;
+    }
+</style>
 {% endblock head %}
 
 {% block body %}
 {% load humanize %}
-<div class="container my-4">
-    <h2>Course Blogs by Startup</h2><br>
-    {% for post in allposts %}
-    <div class="card">
-        <strong class="d-inline-block text-primary px-2">Article by {{ post.author }}</strong>
-        <div class="card-body">
-          <h5 class="card-title">{{ post.title }}</h5>
-          <div class="mb-1 text-muted">{{ post.timeStamp | naturaltime }}</div>
-          <p class="card-text previews">{{ post.content| truncatechars:200 }}</p>
-          <a href="/blog/{{ post.slug }}" class="btn btn-primary">Read More...</a>
-        </div>
-      </div><br>
-      {% endfor %}
-</div>
-<script>
-  let previews = document.getElementsByClassName('previews');
-  Array.from(previews).forEach((element)=>{
-    element.innerHTML = element.innerText;
-  })
-</script>
 
+<!-- Blog Header -->
+<div class="blog-header">
+    <div class="container">
+        <h1 class="display-4">Course Blogs by Startup</h1>
+        <p class="lead">Discover the latest insights, tutorials, and updates from our expert instructors</p>
+    </div>
+</div>
+
+<!-- Blog Posts Grid -->
+<div class="container">
+    <div class="row">
+        {% for post in allposts %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card blog-card">
+                <img src="{{ post.thumbnail.url|default:'https://via.placeholder.com/350x200' }}" 
+                     class="card-img-top blog-image" alt="{{ post.title }}">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="{{ post.author.profile_pic.url|default:'https://via.placeholder.com/32' }}" 
+                             class="author-avatar" alt="{{ post.author }}">
+                        <div class="blog-meta">
+                            <div>{{ post.author }}</div>
+                            <div>{{ post.timeStamp | naturaltime }}</div>
+                        </div>
+                    </div>
+                    <h5 class="card-title">{{ post.title }}</h5>
+                    <p class="card-text previews">{{ post.content| truncatechars:150 }}</p>
+                    <a href="/blog/{{ post.slug }}" class="read-more">Read More →</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    let previews = document.getElementsByClassName('previews');
+    Array.from(previews).forEach((element)=>{
+        element.innerHTML = element.innerText;
+    })
+</script>
 {% endblock body %}
