@@ -14,8 +14,66 @@
   <!-- Font Awesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
   
+  <!-- Video.js CSS -->
+  <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet">
+  
   <!-- Custom CSS -->
   <link rel="stylesheet" href="{% static 'css/modern-style.css' %}">
+  
+  <!-- Video.js Custom Styles -->
+  <style>
+    .video-js {
+      width: 100% !important;
+      height: 450px !important;
+      max-width: 100% !important;
+    }
+    
+    .video-js .vjs-tech {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    
+    .vjs-fluid {
+      padding-top: 56.25% !important;
+    }
+    
+    /* Ensure the player container maintains proper dimensions */
+    #player {
+      min-height: 450px;
+      width: 100%;
+    }
+    
+    /* Fix for responsive behavior */
+    @media (max-width: 768px) {
+      .video-js {
+        height: 250px !important;
+      }
+      #player {
+        min-height: 250px;
+      }
+    }
+    
+    /* Hide YouTube button in bottom right corner */
+    .video-js .vjs-youtube .ytp-youtube-button {
+      display: none !important;
+    }
+    
+    /* Alternative approach - hide the YouTube logo/button */
+    .video-js iframe[src*="youtube"] {
+      pointer-events: none;
+    }
+    
+    /* Hide YouTube watermark and branding */
+    .ytp-watermark,
+    .ytp-youtube-button,
+    .ytp-chrome-top-buttons,
+    .ytp-show-cards-title,
+    .ytp-cards-teaser,
+    .annotation,
+    .video-annotations {
+      display: none !important;
+    }
+  </style>
 
 <title>{% block title %}{% endblock title %} - CourseHub</title>
   {% block head %}
@@ -330,6 +388,10 @@
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
     integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV"
     crossorigin="anonymous"></script>
+
+<!-- Video.js JavaScript -->
+<script src="https://vjs.zencdn.net/8.6.1/video.min.js"></script>
+<script src="https://unpkg.com/videojs-youtube@3.0.1/dist/Youtube.min.js"></script>
 
 {% block js %}
 {% endblock js %}

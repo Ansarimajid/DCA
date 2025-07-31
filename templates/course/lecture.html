@@ -92,8 +92,20 @@
                             Shortcuts: <kbd>Ctrl + ←</kbd> Previous | <kbd>Ctrl + →</kbd> Next | <kbd>Space</kbd> Play/Pause
                         </small>
                     </div>
-                    <div id="player" style="width: 100%; height: 450px;"></div>
-                    <!-- Fallback iframe (hidden by default, shown if API fails) -->
+                    <!-- Video.js Player -->
+                    <video-js id="player" class="video-js vjs-default-skin" 
+                              controls 
+                              preload="auto" 
+                              width="100%" 
+                              height="450" 
+                              data-setup="{}">
+                        <source src="{{ video.video_url }}" type="video/youtube" />
+                        <p class="vjs-no-js">
+                            To view this video please enable JavaScript, and consider upgrading to a web browser that
+                            <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>.
+                        </p>
+                    </video-js>
+                    <!-- Fallback iframe (hidden by default, shown if Video.js fails) -->
                     <iframe id="fallback-player" width="100%" height="450" src="{{ video.video_url }}" frameborder="0" allowfullscreen style="display: none;"></iframe>
                     <div class="mt-3">
                         {% if user.is_authenticated %}
@@ -160,8 +172,6 @@
 {% endblock body %}
 
 {% block js %}
-<!-- Load YouTube Player API -->
-<script src="https://www.youtube.com/iframe_api"></script>
 <script>
 let player;
 let lectureId = {{ video.id }};
@@ -210,32 +220,93 @@ window.addEventListener('load', () => {
                     }
                     break;
                 case ' ': // Spacebar to toggle play/pause
-                    if (player && player.getPlayerState) {
+                    if (player && player.paused !== undefined) {
                         event.preventDefault();
-                        const state = player.getPlayerState();
-                        if (state === YT.PlayerState.PLAYING) {
-                            player.pauseVideo();
-                        } else if (state === YT.PlayerState.PAUSED) {
-                            player.playVideo();
+                        if (player.paused()) {
+                            player.play();
+                        } else {
+                            player.pause();
                         }
                     }
                     break;
             }
         }
     });
+    
+    // Initialize Video.js player
+    initializePlayer();
 });
 
-// Extract YouTube video ID from embed URL
-function getYouTubeVideoId(url) {
-    const regex = /(?:youtube\.com\/embed\/|youtu\.be\/)([\w-]+)/;
-    const match = url.match(regex);
-    return match ? match[1] : null;
+function initializePlayer() {
+    // Initialize Video.js player with options
+    player = videojs('player', {
+        techOrder: ['youtube'],
+        sources: [{
+            type: 'video/youtube',
+            src: '{{ video.video_url }}'
+        }],
+        youtube: {
+            ytControls: 2,
+            modestbranding: 1,
+            rel: 0,
+            showinfo: 0,
+            iv_load_policy: 3,
+            disablekb: 0,
+            fs: 1,
+            playsinline: 1,
+            color: 'white',
+            cc_load_policy: 0,
+            enablejsapi: 1
+        },
+        fluid: false,
+        responsive: true,
+        width: '100%',
+        height: 450
+    });
+
+    // Player ready event
+    player.ready(() => {
+        console.log('Video.js player is ready');
+        // Hide fallback iframe since Video.js player is working
+        document.getElementById('fallback-player').style.display = 'none';
+    });
+
+    // Player error event
+    player.on('error', (e) => {
+        console.error('Video.js player error:', e);
+        showFallbackPlayer();
+    });
+
+    // Player state change event
+    player.on('play', () => {
+        if (!hasStartedWatching) {
+            hasStartedWatching = true;
+            showProgressTracking();
+            console.log('Started watching, showing progress tracking');
+        }
+        startProgressTracking();
+    });
+
+    player.on('pause', () => {
+        stopProgressTracking();
+    });
+
+    player.on('ended', () => {
+        console.log('Video ended');
+        stopProgressTracking();
+        if (!isCompleted && !autoCompleted) {
+            console.log('Video ended, marking as complete...');
+            autoCompleted = true;
+            markLectureComplete(lectureId, true);
+        }
+    });
 }
 
-// Show fallback iframe if API fails
+// Show fallback iframe if Video.js fails
 function showFallbackPlayer() {
-    console.log('YouTube API failed, showing fallback iframe');
+    console.log('Video.js failed, showing fallback iframe');
     document.getElementById('fallback-player').style.display = 'block';
+    document.getElementById('player').style.display = 'none';
     // Hide progress tracking for fallback since we can't track iframe video progress
     if (document.getElementById('watchProgress')) {
         document.getElementById('watchProgress').style.display = 'none';
@@ -244,69 +315,6 @@ function showFallbackPlayer() {
         document.getElementById('watchProgressBar').style.display = 'none';
     }
 }
-
-// Initialize YouTube Player when API is ready
-function onYouTubeIframeAPIReady() {
-    console.log('YouTube API is ready, initializing player...');
-    try {
-        const videoUrl = '{{ video.video_url }}';
-        const videoId = getYouTubeVideoId(videoUrl);
-        
-        console.log('Video URL:', videoUrl);
-        console.log('Extracted Video ID:', videoId);
-        console.log('Is completed:', isCompleted);
-        
-        if (videoId) {
-            console.log('Creating YouTube player...');
-            player = new YT.Player('player', {
-                height: '450',
-                width: '100%',
-                videoId: videoId,
-                playerVars: {
-                    'playsinline': 1,
-                    'rel': 0,
-                    'modestbranding': 1,
-                    'controls': 1
-                },
-                events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange,
-                    'onError': onPlayerError
-                }
-            });
-        } else {
-            console.log('No video ID found, showing fallback');
-            showFallbackPlayer();
-        }
-    } catch (error) {
-        console.error('Error initializing YouTube player:', error);
-        showFallbackPlayer();
-    }
-}
-
-// Initialize player if API is already loaded
-if (typeof YT !== 'undefined' && YT.loaded) {
-    console.log('YouTube API already loaded, initializing now...');
-    onYouTubeIframeAPIReady();
-}
-
-// Handle YouTube API loading timeout - reduced to 2 seconds for faster fallback
-setTimeout(() => {
-    if (!player && typeof YT === 'undefined') {
-        console.log('YouTube API loading timeout, showing fallback');
-        showFallbackPlayer();
-    }
-}, 2000);
-
-// Also check when page loads
-window.addEventListener('load', () => {
-    setTimeout(() => {
-        if (!player) {
-            console.log('Player not initialized after page load, showing fallback');
-            showFallbackPlayer();
-        }
-    }, 1500);
-});
 
 // Player ready event
 function onPlayerReady(event) {
