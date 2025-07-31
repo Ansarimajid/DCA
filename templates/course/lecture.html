@@ -47,7 +47,30 @@
             <div class="card shadow-lg">
                 <h5 class="card-header">{{ video.title }}</h5>
                 <div class="card-body">
-                    <iframe width="100%" height="450" src="{{ video.video_url }}"></iframe>
+                    <div id="player" style="width: 100%; height: 450px;"></div>
+                    <!-- Fallback iframe (hidden by default, shown if API fails) -->
+                    <iframe id="fallback-player" width="100%" height="450" src="{{ video.video_url }}" frameborder="0" allowfullscreen style="display: none;"></iframe>
+                    <div class="mt-3">
+                        {% if user.is_authenticated %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div id="completionStatus">
+                                    {% if lecture_completed %}
+                                        <span class="badge badge-success"><i class="fas fa-check"></i> Completed</span>
+                                    {% else %}
+                                        <button id="markCompleteBtn" class="btn btn-success btn-sm" onclick="markLectureComplete({{ video.id }})">
+                                            <i class="fas fa-check"></i> Mark as Complete
+                                        </button>
+                                    {% endif %}
+                                </div>
+                                <div id="watchProgress" class="text-muted" style="display: none;">
+                                    <small><i class="fas fa-play-circle"></i> <span id="progressText">0% watched</span></small>
+                                </div>
+                            </div>
+                            <div id="watchProgressBar" class="progress" style="height: 4px; display: none;">
+                                <div class="progress-bar bg-warning" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
             <div class="card shadow-lg my-4">
@@ -80,3 +103,269 @@
     </div>
 </div>
 {% endblock body %}
+
+{% block js %}
+<!-- Load YouTube Player API -->
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+let player;
+let lectureId = {{ video.id }};
+let isCompleted = {% if lecture_completed %}true{% else %}false{% endif %};
+let autoCompleted = false;
+let progressInterval;
+let hasStartedWatching = false;
+let watchedSegments = new Set();
+let videoDuration = 0;
+
+// Extract YouTube video ID from embed URL
+function getYouTubeVideoId(url) {
+    const regex = /(?:youtube\.com\/embed\/|youtu\.be\/)([\w-]+)/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+}
+
+// Show fallback iframe if API fails
+function showFallbackPlayer() {
+    console.log('YouTube API failed, showing fallback iframe');
+    document.getElementById('fallback-player').style.display = 'block';
+    // Hide progress tracking for fallback since we can't track iframe video progress
+    if (document.getElementById('watchProgress')) {
+        document.getElementById('watchProgress').style.display = 'none';
+    }
+    if (document.getElementById('watchProgressBar')) {
+        document.getElementById('watchProgressBar').style.display = 'none';
+    }
+}
+
+// Initialize YouTube Player when API is ready
+function onYouTubeIframeAPIReady() {
+    console.log('YouTube API is ready, initializing player...');
+    try {
+        const videoUrl = '{{ video.video_url }}';
+        const videoId = getYouTubeVideoId(videoUrl);
+        
+        console.log('Video URL:', videoUrl);
+        console.log('Extracted Video ID:', videoId);
+        console.log('Is completed:', isCompleted);
+        
+        if (videoId) {
+            console.log('Creating YouTube player...');
+            player = new YT.Player('player', {
+                height: '450',
+                width: '100%',
+                videoId: videoId,
+                playerVars: {
+                    'playsinline': 1,
+                    'rel': 0,
+                    'modestbranding': 1,
+                    'controls': 1
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        } else {
+            console.log('No video ID found, showing fallback');
+            showFallbackPlayer();
+        }
+    } catch (error) {
+        console.error('Error initializing YouTube player:', error);
+        showFallbackPlayer();
+    }
+}
+
+// Initialize player if API is already loaded
+if (typeof YT !== 'undefined' && YT.loaded) {
+    console.log('YouTube API already loaded, initializing now...');
+    onYouTubeIframeAPIReady();
+}
+
+// Handle YouTube API loading timeout - reduced to 2 seconds for faster fallback
+setTimeout(() => {
+    if (!player && typeof YT === 'undefined') {
+        console.log('YouTube API loading timeout, showing fallback');
+        showFallbackPlayer();
+    }
+}, 2000);
+
+// Also check when page loads
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        if (!player) {
+            console.log('Player not initialized after page load, showing fallback');
+            showFallbackPlayer();
+        }
+    }, 1500);
+});
+
+// Player ready event
+function onPlayerReady(event) {
+    console.log('YouTube player is ready and working');
+    // Hide fallback iframe since API player is working
+    const fallback = document.getElementById('fallback-player');
+    if (fallback) {
+        fallback.style.display = 'none';
+    }
+}
+
+// Player error event
+function onPlayerError(event) {
+    console.error('YouTube player error:', event.data);
+    showFallbackPlayer();
+}
+
+// Player state change event
+function onPlayerStateChange(event) {
+    switch(event.data) {
+        case YT.PlayerState.PLAYING:
+            if (!hasStartedWatching) {
+                hasStartedWatching = true;
+                showProgressTracking();
+            }
+            startProgressTracking();
+            break;
+        case YT.PlayerState.PAUSED:
+            stopProgressTracking();
+            break;
+        case YT.PlayerState.ENDED:
+            stopProgressTracking();
+            if (!isCompleted && !autoCompleted) {
+                console.log('Video ended, marking as complete...');
+                autoCompleted = true;
+                markLectureComplete(lectureId, true);
+            }
+            break;
+    }
+}
+
+// Mark lecture complete function (updated to handle auto-completion)
+function markLectureComplete(lectureId, isAutoComplete = false) {
+    fetch('/courses/lecture/complete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: 'lecture_id=' + lectureId
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Replace button with completed badge
+            document.getElementById('completionStatus').innerHTML = 
+                '<span class="badge badge-success"><i class="fas fa-check"></i> Completed</span>';
+            
+            if (isAutoComplete) {
+                showAutoCompleteNotification();
+            } else {
+                alert('Lecture marked as completed!');
+            }
+            
+            isCompleted = true;
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (!isAutoComplete) {
+            alert('An error occurred while marking the lecture as complete.');
+        }
+    });
+}
+
+// Show progress tracking elements
+function showProgressTracking() {
+    document.getElementById('watchProgress').style.display = 'block';
+    document.getElementById('watchProgressBar').style.display = 'block';
+}
+
+// Start tracking video progress
+function startProgressTracking() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+    }
+    
+    progressInterval = setInterval(() => {
+        if (player && player.getCurrentTime && player.getDuration) {
+            const currentTime = player.getCurrentTime();
+            const duration = player.getDuration();
+
+            videoDuration = duration; // Store for segment tracking
+
+            if (duration > 0) {
+                const progressPercent = Math.round((currentTime / duration) * 100);
+                updateProgressDisplay(progressPercent);
+                // Track watched segment
+                const currentSegment = Math.floor((currentTime / videoDuration) * 100);
+                watchedSegments.add(currentSegment);
+
+                // Check if the majority of the video has been watched
+                const uniqueSegmentsWatched = watchedSegments.size;
+
+                // Require at least 75% of segments to be watched for lecture completion
+                if (uniqueSegmentsWatched >= 75 && !isCompleted && !autoCompleted) {
+                    console.log('75% of segments watched, marking as complete...');
+                    autoCompleted = true;
+                    markLectureComplete(lectureId, true);
+                }
+                // Also auto-complete if 95% progress is reached
+                if (progressPercent >= 95 && !isCompleted && !autoCompleted) {
+                    console.log('95% watched, marking as complete...');
+                    autoCompleted = true;
+                    markLectureComplete(lectureId, true);
+                }
+            }
+        }
+    }, 1000); // Update every second
+}
+
+// Stop tracking video progress
+function stopProgressTracking() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+    }
+}
+
+// Update progress display
+function updateProgressDisplay(percent) {
+    const uniqueSegments = watchedSegments.size;
+    const segmentText = uniqueSegments > 1 ? `${percent}% watched (${uniqueSegments}% coverage)` : `${percent}% watched`;
+    document.getElementById('progressText').textContent = segmentText;
+    const progressBar = document.querySelector('#watchProgressBar .progress-bar');
+    progressBar.style.width = `${percent}%`;
+    progressBar.setAttribute('aria-valuenow', percent);
+}
+
+// Show auto-complete notification
+function showAutoCompleteNotification() {
+    // Hide progress tracking when completed
+    document.getElementById('watchProgress').style.display = 'none';
+    document.getElementById('watchProgressBar').style.display = 'none';
+    
+    // Create a nice notification instead of alert
+    const notification = document.createElement('div');
+    notification.className = 'alert alert-success alert-dismissible fade show';
+    notification.innerHTML = `
+        <strong>🎉 Congratulations!</strong> You've completed this lecture!
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    `;
+    
+    // Insert notification at the top of the video card
+    const cardBody = document.querySelector('.card-body');
+    cardBody.insertBefore(notification, cardBody.firstChild);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock js %}

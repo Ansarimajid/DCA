@@ -48,7 +48,11 @@
                         </div>
                         <ul class="list-group list-group-flush">
                             <li class="list-group-item"><img src="https://img.icons8.com/metro/20/000000/in-progress.png"/> Progress 
-                                <span class="badge badge-danger">{{ ucourse.progress }}</span></li>
+                                <span class="badge badge-danger">{{ ucourse.progress }}</span>
+                                <div class="progress mt-2" style="height: 8px;">
+                                    <div class="progress-bar bg-info" role="progressbar" style="width: {{ ucourse.progress }}" aria-valuenow="{{ ucourse.progress|cut:' %' }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </li>
                         </ul>
                         <div class="card-body">
                             <center>

@@ -26,6 +26,11 @@ def UserCourse(request):
     if request.user.is_authenticated == True:
         user = StudentInfo.objects.filter(username=request.user).first()
         ucourse = CourseSubscription.objects.filter(student=user)
+        
+        # Update progress for all subscribed courses
+        for subscription in ucourse:
+            subscription.update_progress()
+        
         contest = {
             "ucourse":ucourse,
         }

@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from .models import Course, Lecture, Section, LectureComment
-from student.models import CourseSubscription, StudentInfo, PaymentProcess
-from django.http import HttpResponseRedirect
+from student.models import CourseSubscription, StudentInfo, PaymentProcess, LectureProgress
+from django.http import HttpResponseRedirect, JsonResponse
 import razorpay
 import json
 
@@ -26,6 +26,9 @@ def course_detail(request, slug):
         if request.user.is_authenticated == True:
             subscription_course = CourseSubscription.objects.filter(student=StudentInfo.objects.filter(username=request.user).first(), 
             course=course).first()
+            # Update progress in real-time
+            if subscription_course:
+                subscription_course.update_progress()
         else:
             subscription_course = None
         context = {
@@ -45,6 +48,18 @@ def lecture_detail(request, slug, lecture_slug):
         lecture = Lecture.objects.filter(course=course)
         video = Lecture.objects.filter(lecture_slug=lecture_slug).first()
         Lecture_Comment = LectureComment.objects.filter(lecture=video)
+        
+        # Check if user has completed this lecture
+        lecture_completed = False
+        if request.user.is_authenticated:
+            student = StudentInfo.objects.filter(username=request.user).first()
+            if student:
+                lecture_progress, created = LectureProgress.objects.get_or_create(
+                    student=student,
+                    lecture=video,
+                    defaults={'completed': False}
+                )
+                lecture_completed = lecture_progress.completed
 
         context ={
             "course":course,
@@ -52,6 +67,7 @@ def lecture_detail(request, slug, lecture_slug):
             "lecture":lecture,
             "video":video,
             "lecture_comment":Lecture_Comment,
+            "lecture_completed": lecture_completed,
         }
         return render(request, 'course/lecture.html', context)
 
@@ -61,6 +77,43 @@ def pricing(request):
         "course": course
     }
     return render(request, 'course/pricing.html', context)
+
+def mark_lecture_complete(request):
+    if request.method == 'POST' and request.user.is_authenticated:
+        lecture_id = request.POST.get('lecture_id')
+        if lecture_id:
+            try:
+                student = StudentInfo.objects.filter(username=request.user).first()
+                lecture = Lecture.objects.get(id=lecture_id)
+                
+                if student:
+                    lecture_progress, created = LectureProgress.objects.get_or_create(
+                        student=student,
+                        lecture=lecture,
+                        defaults={'completed': True}
+                    )
+                    
+                    if not created:
+                        lecture_progress.completed = True
+                        lecture_progress.save()
+                    
+                    # Update course progress
+                    subscription = CourseSubscription.objects.filter(
+                        student=student,
+                        course=lecture.course
+                    ).first()
+                    
+                    if subscription:
+                        subscription.update_progress()
+                    
+                    return JsonResponse({'success': True, 'message': 'Lecture marked as completed'})
+                    
+            except Lecture.DoesNotExist:
+                return JsonResponse({'success': False, 'message': 'Lecture not found'})
+        
+        return JsonResponse({'success': False, 'message': 'Invalid request'})
+    
+    return JsonResponse({'success': False, 'message': 'Authentication required'})
 
 def videoComment(request):
     if request.user.is_authenticated == True:
