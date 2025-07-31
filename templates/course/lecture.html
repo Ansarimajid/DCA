@@ -38,6 +38,8 @@
                                            class="{% if lecture.id == video.id %}text-primary font-weight-bold{% endif %}">
                                             {% if lecture.id == video.id %}
                                                 <i class="fas fa-play-circle"></i> {{ lecture.title }} <span class="badge badge-primary">Current</span>
+                                            {% elif previous_lecture and lecture.id == previous_lecture.id %}
+                                                <i class="fas fa-backward"></i> {{ lecture.title }} <span class="badge badge-secondary">Previous</span>
                                             {% elif next_lecture and lecture.id == next_lecture.id %}
                                                 <i class="fas fa-forward"></i> {{ lecture.title }} <span class="badge badge-info">Next</span>
                                             {% else %}
@@ -58,6 +60,38 @@
             <div class="card shadow-lg">
                 <h5 class="card-header">{{ video.title }}</h5>
                 <div class="card-body">
+                    <!-- Navigation buttons -->
+                    <div class="d-flex justify-content-between mb-3">
+                        <!-- Previous lecture button -->
+                        {% if previous_lecture %}
+                        <a href="{% url 'lecture_detail' course.course_slug previous_lecture.lecture_slug %}"
+                           class="btn btn-outline-primary"
+                           title="Previous: {{ previous_lecture.title }}">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                        {% else %}
+                        <div></div>
+                        {% endif %}
+
+                        <!-- Next lecture button -->
+                        {% if next_lecture %}
+                        <a href="{% url 'lecture_detail' course.course_slug next_lecture.lecture_slug %}"
+                           class="btn btn-outline-primary"
+                           title="Next: {{ next_lecture.title }}">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                        {% else %}
+                        <div></div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Keyboard shortcuts help -->
+                    <div class="text-center mb-2">
+                        <small class="text-muted">
+                            <i class="fas fa-keyboard"></i> 
+                            Shortcuts: <kbd>Ctrl + ←</kbd> Previous | <kbd>Ctrl + →</kbd> Next | <kbd>Space</kbd> Play/Pause
+                        </small>
+                    </div>
                     <div id="player" style="width: 100%; height: 450px;"></div>
                     <!-- Fallback iframe (hidden by default, shown if API fails) -->
                     <iframe id="fallback-player" width="100%" height="450" src="{{ video.video_url }}" frameborder="0" allowfullscreen style="display: none;"></iframe>
@@ -138,6 +172,7 @@ let hasStartedWatching = false;
 let watchedSegments = new Set();
 let videoDuration = 0;
 let nextLectureUrl = {% if next_lecture %}'{% url "lecture_detail" course.course_slug next_lecture.lecture_slug %}'{% else %}null{% endif %};
+let previousLectureUrl = {% if previous_lecture %}'{% url "lecture_detail" course.course_slug previous_lecture.lecture_slug %}'{% else %}null{% endif %};
 let autoPlayCountdown = 0;
 let countdownInterval = null;
 
@@ -156,6 +191,38 @@ window.addEventListener('load', () => {
             console.log('Auto-play preference saved:', autoPlayToggle.checked);
         });
     }
+    
+    // Add keyboard shortcuts for navigation
+    document.addEventListener('keydown', (event) => {
+        // Only if not typing in an input field
+        if (event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') {
+            switch(event.key) {
+                case 'ArrowLeft':
+                    if (event.ctrlKey && previousLectureUrl) {
+                        console.log('Keyboard shortcut: Previous lecture');
+                        window.location.href = previousLectureUrl;
+                    }
+                    break;
+                case 'ArrowRight':
+                    if (event.ctrlKey && nextLectureUrl) {
+                        console.log('Keyboard shortcut: Next lecture');
+                        window.location.href = nextLectureUrl;
+                    }
+                    break;
+                case ' ': // Spacebar to toggle play/pause
+                    if (player && player.getPlayerState) {
+                        event.preventDefault();
+                        const state = player.getPlayerState();
+                        if (state === YT.PlayerState.PLAYING) {
+                            player.pauseVideo();
+                        } else if (state === YT.PlayerState.PAUSED) {
+                            player.playVideo();
+                        }
+                    }
+                    break;
+            }
+        }
+    });
 });
 
 // Extract YouTube video ID from embed URL

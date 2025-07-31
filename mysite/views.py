@@ -63,16 +63,19 @@ def lecture_detail(request, slug, lecture_slug):
                 )
                 lecture_completed = lecture_progress.completed
         
-        # Find next lecture in sequence
+        # Find previous and next lectures in sequence
         all_lectures = Lecture.objects.filter(course=course).order_by('id')
+        previous_lecture = None
         current_lecture_found = False
         
-        for lec in all_lectures:
-            if current_lecture_found:
-                next_lecture = lec
-                break
+        for i, lec in enumerate(all_lectures):
             if lec.id == video.id:
                 current_lecture_found = True
+                if i > 0:
+                    previous_lecture = all_lectures[i-1]
+                if i < len(all_lectures) - 1:
+                    next_lecture = all_lectures[i+1]
+                break
 
         context ={
             "course":course,
@@ -81,6 +84,7 @@ def lecture_detail(request, slug, lecture_slug):
             "video":video,
             "lecture_comment":Lecture_Comment,
             "lecture_completed": lecture_completed,
+            "previous_lecture": previous_lecture,
             "next_lecture": next_lecture,
         }
         return render(request, 'course/lecture.html', context)
